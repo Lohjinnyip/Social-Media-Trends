@@ -11,10 +11,11 @@ import { fetchInstagramVideos, instagramStatus } from './providers/instagram.js'
 import { fetchFacebookVideos, facebookStatus } from './providers/facebook.js';
 import { fetchYouTube, youtubeStatus } from './providers/youtube.js';
 import { fetchSearchTrends } from './providers/searchTrends.js';
+import { JOB_SOURCES, JOB_FETCHERS, jobSourceStatus, mergeJobs } from './providers/jobs.js';
 import { costSummary } from './cost.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const CACHE_FILE = path.join(ROOT, 'data', 'cache.json');
+const CACHE_FILE = process.env.CACHE_FILE || path.join(ROOT, 'data', 'cache.json');
 
 // ── Sources ──────────────────────────────────────────────────────────
 const SOURCES = {
@@ -31,6 +32,17 @@ const SOURCES = {
     enabled: () => tiktokStatus().connected && config.tiktok.trendsEnabled,
   },
 };
+
+// Job sources: Google Jobs (SerpApi free quota) and Apify ones refresh on the slow
+// interval; Careerjet is free and unmetered so it can refresh more often.
+for (const [name, meta] of Object.entries(JOB_SOURCES)) {
+  SOURCES[`jobs_${name}`] = {
+    run: JOB_FETCHERS[name],
+    intervalMs: name === 'careerjet' ? config.refresh.jobsFreeMs : config.refresh.jobsMs,
+    paid: meta.paid || name === 'google',
+    enabled: () => jobSourceStatus(name).connected,
+  };
+}
 
 // data[source] = { payload, updatedAt, error, running, nextAt, lastManualAt }
 const data = Object.fromEntries(Object.keys(SOURCES).map((k) => [k, { payload: null, updatedAt: null, error: null }]));
@@ -160,6 +172,7 @@ function snapshot() {
       instagram: instagramStatus(),
       facebook: facebookStatus(),
       youtube: youtubeStatus(),
+      ...Object.fromEntries(Object.keys(JOB_SOURCES).map((n) => [`jobs_${n}`, jobSourceStatus(n)])),
       searchTrends: { connected: true, via: 'Google Trends RSS · Malaysia (free)' },
       news: { connected: true, via: `RSS feeds${config.newsApiKey ? ' + NewsAPI' : ''}` },
     },
@@ -172,6 +185,8 @@ function snapshot() {
     news: data.news.payload?.items || [],
     videos: { tiktok: videosOf('tiktok'), instagram: videosOf('instagram'), facebook: videosOf('facebook'), youtube: videosOf('youtube') },
     searchTrends: data.searchTrends.payload || [],
+    jobs: mergeJobs(Object.keys(JOB_SOURCES).map((n) => (Array.isArray(data[`jobs_${n}`].payload) ? data[`jobs_${n}`].payload : []))),
+    jobQueries: config.jobs.queries,
     trends: { hashtags: data.tiktokTrends.payload?.hashtags || [] },
     sounds: aggregateSounds(),
     hashtags: aggregateHashtags(),

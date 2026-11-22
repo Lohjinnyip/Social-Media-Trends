@@ -7,6 +7,7 @@ A live dashboard showing:
 - **YouTube's official Malaysia trending chart**, including Shorts, plus Malaysia's trending music videos. Free.
 - **Trending hashtags**: TikTok Creative Center's official Malaysia ranking, plus hashtags found in the current trending videos.
 - **Trending Google searches in Malaysia**. Free, no key.
+- **Jobs tab**: Malaysian job listings from JobStreet, LinkedIn, Indeed, Google Jobs (which also lists Maukerja, Hiredly and others) and Careerjet. The same job posted on several sites is merged into one row with a link to each site.
 - **Latest Malaysian news** from Google News MY (English and Bahasa Malaysia), Free Malaysia Today, Malay Mail, New Straits Times and Bernama.
 
 All data refreshes automatically on the server and is pushed to open browsers in real time. You never need to reload the page.
@@ -93,6 +94,28 @@ Estimated monthly cost with the default result counts, worst case:
 
 News is free and refreshes every **3 min** (`NEWS_REFRESH_MINUTES`).
 
+## Jobs
+
+None of LinkedIn, JobStreet, Indeed, Maukerja or Hiredly offer a public job-search API (LinkedIn and Indeed's APIs are for partners and employers only). Each site is reached a different way:
+
+| Site | How | Cost | `.env` |
+|---|---|---|---|
+| **Google Jobs**, which lists Maukerja, Hiredly, JobStreet, LinkedIn and others | SerpApi | **Free**: 250 searches/month | `SERPAPI_KEY` |
+| **Careerjet** (job aggregator, careerjet.com.my) | Official API v4 | **Free** publisher key | `CAREERJET_API_KEY` |
+| **JobStreet** | Apify `blackfalcondata/jobstreet-scraper` | $0.002/job + $0.01/search | `APIFY_TOKEN` |
+| **LinkedIn** | Apify `curious_coder/linkedin-jobs-scraper` | $0.002/job | `APIFY_TOKEN` |
+| **Indeed Malaysia** | Apify `curious_coder/indeed-scraper` | $0.0001/job | `APIFY_TOKEN` |
+
+Maukerja and Hiredly have no API and no reliable scraper, so they appear through Google Jobs (shown as "Google Jobs · Maukerja").
+
+**Settings:** `JOB_QUERIES` (one search per comma-separated entry, run on every enabled site), `JOB_CITY`, `JOB_RESULTS_PER_QUERY`, `JOB_POSTED_WITHIN_DAYS`, and `JOB_SOURCES` to turn sites on or off. With the defaults (3 searches, 10 results each, once a day), Google Jobs uses about 90 of the 250 free monthly searches, and the Apify sites cost about $0.15/day (around $4.60/month).
+
+**Get the free keys:**
+- *SerpApi:* sign up at https://serpapi.com/users/sign_up, then copy the key from https://serpapi.com/manage-api-key.
+- *Careerjet:* register as a publisher at https://www.careerjet.com/partners/register/as-publisher, then copy the API key from your publisher account. Careerjet also asks for the end user's IP address; set `CAREERJET_USER_IP` to your public IP.
+
+The Jobs tab can be opened directly at `http://localhost:3000/#tab=jobs`.
+
 ## How "trending" is calculated
 
 Each video gets a score of weighted engagement (views + 8×likes + 15×comments + 25×shares) divided by `(hours since posted + 2)^1.3`. A video posted 2 hours ago with 300K views ranks above a 3-day-old video with 2M. The 🔥 figure on each card is views per hour. You can also sort by most views, most likes or newest.
@@ -122,6 +145,7 @@ server/
     facebook.js       Page videos via Apify, or Meta Graph API fallback
     youtube.js        YouTube Data API: Malaysia trending chart + music
     searchTrends.js   Google Trends "trending now" RSS for Malaysia
+    jobs.js           Job listings: JobStreet, LinkedIn, Indeed, Google Jobs, Careerjet
     news.js           Malaysian RSS feeds (+ optional NewsAPI)
     util.js           Normalisation + trend scoring
 public/               Dashboard (vanilla JS, no build step)

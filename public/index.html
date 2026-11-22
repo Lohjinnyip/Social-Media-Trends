@@ -17,6 +17,10 @@
         <p class="sub">Trending videos, sounds &amp; news, updated live</p>
       </div>
     </div>
+    <nav class="tabs" id="tabs" role="tablist">
+      <button data-tab="social" class="on" role="tab">Social &amp; News</button>
+      <button data-tab="jobs" role="tab">Jobs</button>
+    </nav>
     <div class="top-right">
       <span id="live" class="live off"><i></i><span>Connecting…</span></span>
       <span id="clock" class="clock" title="Malaysia time (MYT)"></span>
@@ -25,6 +29,7 @@
     </div>
   </header>
 
+  <div id="view-social" class="view">
   <section id="status" class="status-strip" aria-label="Data sources"></section>
 
   <main class="layout">
@@ -88,6 +93,38 @@
       </div>
     </aside>
   </main>
+  </div>
+
+  <div id="view-jobs" class="view" hidden>
+    <section id="jobStatus" class="status-strip" aria-label="Job sources"></section>
+    <main class="layout">
+      <section class="col-main">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Jobs in Malaysia <span class="muted" id="jobCount"></span></h2>
+            <div class="controls">
+              <input id="jobSearch" type="search" placeholder="Filter title, company, location…" aria-label="Filter jobs" />
+              <select id="jobSort" aria-label="Sort jobs">
+                <option value="newest">Newest</option>
+                <option value="salary">Salary shown first</option>
+                <option value="sites">On most sites</option>
+              </select>
+            </div>
+          </div>
+          <div class="filters">
+            <div class="seg small" id="jobSourceFilter"></div>
+            <div class="chips" id="jobQueryFilter"></div>
+          </div>
+          <div id="jobs" class="job-list"></div>
+        </div>
+      </section>
+      <aside class="col-side">
+        <div class="panel"><div class="panel-head"><h2>By site</h2></div><div id="jobBySite"></div></div>
+        <div class="panel"><div class="panel-head"><h2>Top hiring companies</h2></div><div id="jobCompanies"></div></div>
+        <div class="panel"><div class="panel-head"><h2>Top locations</h2></div><div id="jobLocations"></div></div>
+      </aside>
+    </main>
+  </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <audio id="player" preload="none"></audio>

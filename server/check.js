@@ -31,7 +31,7 @@ if (!config.apifyToken) {
 console.log('\nEstimated Apify cost with your current .env');
 const est = estimateCost('free');
 for (const [k, v] of Object.entries(est.perRun)) {
-  if (v) console.log(`    ${k.padEnd(13)} $${v.toFixed(3)} per refresh × ${est.runsPerDay[k].toFixed(1)}/day`);
+  if (v) console.log(`    ${k.padEnd(15)} $${v.toFixed(3)} per refresh × ${est.runsPerDay[k].toFixed(1)}/day`);
 }
 console.log(`    → ${costSummary()}`);
 console.log('    (worst case: assumes every search returns its full result count)');
@@ -42,6 +42,26 @@ else {
   const { res, body } = await json(`https://www.googleapis.com/youtube/v3/videos?part=id&chart=mostPopular&regionCode=MY&maxResults=1&key=${encodeURIComponent(config.youtube.apiKey)}`);
   res.ok ? ok('API key valid, Malaysia trending chart reachable') : bad(`YouTube: ${body.error?.message || res.status}`);
 }
+
+console.log('\nJobs');
+if (!config.jobs.serpApiKey) skip('SERPAPI_KEY not set (Google Jobs)');
+else {
+  // account.json is free and doesn't use a search
+  const { res, body } = await json(`https://serpapi.com/account.json?api_key=${encodeURIComponent(config.jobs.serpApiKey)}`);
+  res.ok && !body.error
+    ? ok(`SerpApi key valid: ${body.plan_searches_left ?? body.total_searches_left ?? '?'} searches left this month (${body.plan_name || 'plan'})`)
+    : bad(`SerpApi: ${body.error || res.status}`);
+}
+if (!config.jobs.careerjetKey) skip('CAREERJET_API_KEY not set');
+else {
+  const qs = new URLSearchParams({ locale_code: 'en_MY', keywords: 'executive', page_size: '1', user_ip: config.jobs.careerjetUserIp, user_agent: 'Mozilla/5.0' });
+  const { res, body } = await json(`https://search.api.careerjet.net/v4/query?${qs}`, {
+    headers: { Authorization: 'Basic ' + Buffer.from(`${config.jobs.careerjetKey}:`).toString('base64'), Referer: 'http://localhost/' },
+  });
+  res.ok && body.type !== 'ERROR' ? ok(`Careerjet key valid (${body.hits ?? '?'} Malaysian jobs for "executive")`) : bad(`Careerjet: ${body.error || res.status}`);
+}
+if (config.apifyToken) ok(`JobStreet / LinkedIn / Indeed use your APIFY_TOKEN (${config.jobs.sources.filter((s) => ['jobstreet', 'linkedin', 'indeed'].includes(s)).join(', ') || 'none enabled'})`);
+else skip('JobStreet / LinkedIn / Indeed need APIFY_TOKEN');
 
 console.log('\nMeta Graph API (optional)');
 for (const [label, token] of [['Instagram', config.instagram.graphToken], ['Facebook', config.facebook.graphToken]]) {

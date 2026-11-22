@@ -17,6 +17,8 @@ export const config = {
     trendsMs: num(env.TRENDS_REFRESH_MINUTES, 1440) * 60_000,
     youtubeMs: num(env.YOUTUBE_REFRESH_MINUTES, 30) * 60_000,
     searchTrendsMs: num(env.SEARCH_TRENDS_REFRESH_MINUTES, 10) * 60_000,
+    jobsMs: num(env.JOBS_REFRESH_MINUTES, 1440) * 60_000,
+    jobsFreeMs: num(env.JOBS_FREE_REFRESH_MINUTES, 360) * 60_000,
     // Manual "refresh now" for paid sources is throttled to this.
     manualSocialMinMs: 2 * 60_000,
   },
@@ -49,6 +51,18 @@ export const config = {
 
   youtube: {
     apiKey: env.YOUTUBE_API_KEY?.trim() || '',
+  },
+
+  jobs: {
+    queries: list(env.JOB_QUERIES, 'executive,software engineer,marketing'),
+    location: env.JOB_LOCATION?.trim() || 'Malaysia',
+    city: env.JOB_CITY?.trim() || '',
+    resultsPerQuery: num(env.JOB_RESULTS_PER_QUERY, 10),
+    postedWithinDays: num(env.JOB_POSTED_WITHIN_DAYS, 7),
+    sources: list(env.JOB_SOURCES, 'jobstreet,linkedin,indeed,google,careerjet'),
+    serpApiKey: env.SERPAPI_KEY?.trim() || '',
+    careerjetKey: env.CAREERJET_API_KEY?.trim() || '',
+    careerjetUserIp: env.CAREERJET_USER_IP?.trim() || '127.0.0.1',
   },
 
   newsApiKey: env.NEWSAPI_KEY?.trim() || '',

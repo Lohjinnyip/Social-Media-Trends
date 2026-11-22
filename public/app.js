@@ -31,7 +31,8 @@ function until(iso) {
 
 // ── State ────────────────────────────────────────────────────────────
 let state = null;
-const ui = { platform: 'all', sort: 'score', soundKind: 'all', lang: 'all' };
+const ui = { platform: 'all', sort: 'score', soundKind: 'all', lang: 'all', tab: 'social', jobSource: 'all', jobQuery: 'all', jobSort: 'newest' };
+let jobSearch = '';
 const seenNews = new Set();
 let firstNewsLoad = true;
 const freshNews = new Set();
@@ -47,22 +48,27 @@ const saveUi = () => { try { localStorage.setItem('pulse-ui', JSON.stringify(ui)
 // ── Rendering ────────────────────────────────────────────────────────
 const LABEL = { news: 'News', tiktok: 'TikTok', instagram: 'Instagram', facebook: 'Facebook', youtube: 'YouTube', tiktokTrends: 'TikTok trends', searchTrends: 'Google Trends' };
 const PLATFORMS = ['tiktok', 'instagram', 'facebook', 'youtube'];
+const JOB_SITES = { jobstreet: 'JobStreet', linkedin: 'LinkedIn', indeed: 'Indeed', google: 'Google Jobs', careerjet: 'Careerjet' };
+for (const [k, v] of Object.entries(JOB_SITES)) LABEL[`jobs_${k}`] = v;
+
+function statusChip(k) {
+  const s = state.sources[k];
+  const prov = state.providers[k === 'tiktokTrends' ? 'tiktok' : k];
+  if (!s) return '';
+  if (!s.enabled) {
+    return `<div class="src off" title="${esc(prov?.hint || '')}"><span class="dot"></span><b>${LABEL[k]}</b><span class="meta">not connected</span></div>`;
+  }
+  const cls = s.running ? 'running' : s.error && !s.updatedAt ? 'err' : 'ok';
+  const meta = s.running
+    ? 'fetching…'
+    : `${s.updatedAt ? 'updated ' + ago(s.updatedAt) : 'waiting'}${s.nextAt ? ' · next in ' + until(s.nextAt) : ''}`;
+  const title = [prov?.via, s.error].filter(Boolean).join('\n');
+  return `<div class="src ${cls}" title="${esc(title)}"><span class="dot"></span><b>${LABEL[k]}</b><span class="meta">${meta}</span>${s.error ? '<span title="' + esc(s.error) + '">⚠️</span>' : ''}<button data-refresh="${k}" title="Refresh ${LABEL[k]} now">↻</button></div>`;
+}
 
 function renderStatus() {
-  const order = ['tiktok', 'instagram', 'facebook', 'youtube', 'tiktokTrends', 'searchTrends', 'news'];
-  $('#status').innerHTML = order.map((k) => {
-    const s = state.sources[k];
-    const prov = state.providers[k === 'tiktokTrends' ? 'tiktok' : k];
-    if (!s.enabled) {
-      return `<div class="src off" title="${esc(prov?.hint || '')}"><span class="dot"></span><b>${LABEL[k]}</b><span class="meta">not connected</span></div>`;
-    }
-    const cls = s.running ? 'running' : s.error && !s.updatedAt ? 'err' : 'ok';
-    const meta = s.running
-      ? 'fetching…'
-      : `${s.updatedAt ? 'updated ' + ago(s.updatedAt) : 'waiting'}${s.nextAt ? ' · next in ' + until(s.nextAt) : ''}`;
-    const title = [prov?.via, s.error].filter(Boolean).join('\n');
-    return `<div class="src ${cls}" title="${esc(title)}"><span class="dot"></span><b>${LABEL[k]}</b><span class="meta">${meta}</span>${s.error ? '<span title="' + esc(s.error) + '">⚠️</span>' : ''}<button data-refresh="${k}" title="Refresh ${LABEL[k]} now">↻</button></div>`;
-  }).join('');
+  $('#status').innerHTML = ['tiktok', 'instagram', 'facebook', 'youtube', 'tiktokTrends', 'searchTrends', 'news'].map(statusChip).join('');
+  $('#jobStatus').innerHTML = Object.keys(JOB_SITES).map((k) => statusChip(`jobs_${k}`)).join('');
 }
 
 function allVideos() {
@@ -231,8 +237,90 @@ function trackNewNews() {
   }
 }
 
+// ── Jobs ─────────────────────────────────────────────────────────────
+function jobSetupCard() {
+  return `<div class="setup">
+    <h3>Connect job sources</h3>
+    <p>LinkedIn, JobStreet, Indeed, Maukerja and Hiredly don't offer public job-search APIs, so each site is reached a different way:</p>
+    <ol>
+      <li><b>Google Jobs (free, 250 searches/month):</b> sign up at <a href="https://serpapi.com/users/sign_up" target="_blank" rel="noopener"><u>serpapi.com</u></a> and set <code>SERPAPI_KEY</code>. Google lists jobs from Maukerja, Hiredly, JobStreet, LinkedIn and more.</li>
+      <li><b>Careerjet (free):</b> register as a publisher at <a href="https://www.careerjet.com/partners/register/as-publisher" target="_blank" rel="noopener"><u>careerjet.com/partners</u></a> and set <code>CAREERJET_API_KEY</code>.</li>
+      <li><b>JobStreet, LinkedIn, Indeed (paid via Apify):</b> set <code>APIFY_TOKEN</code>. Costs about $0.002 per job on JobStreet and LinkedIn, $0.0001 on Indeed.</li>
+    </ol>
+    <p>Then restart with <code>npm start</code>. Searches are set by <code>JOB_QUERIES</code> in <code>.env</code>.</p>
+  </div>`;
+}
+
+function filteredJobs() {
+  const q = jobSearch.trim().toLowerCase();
+  let list = state.jobs.filter((j) =>
+    (ui.jobSource === 'all' || j.sites.some((s) => s.source === ui.jobSource)) &&
+    (ui.jobQuery === 'all' || j.query === ui.jobQuery) &&
+    (!q || `${j.title} ${j.company} ${j.location} ${j.via || ''}`.toLowerCase().includes(q)));
+  if (ui.jobSort === 'salary') list = [...list].sort((a, b) => (!!b.salary - !!a.salary) || Date.parse(b.postedAt || 0) - Date.parse(a.postedAt || 0));
+  if (ui.jobSort === 'sites') list = [...list].sort((a, b) => b.sites.length - a.sites.length || Date.parse(b.postedAt || 0) - Date.parse(a.postedAt || 0));
+  return list;
+}
+
+function jobRow(j) {
+  const initial = esc((j.company || j.title || '?').trim()[0]?.toUpperCase() || '?');
+  const sites = j.sites.map((s) => `<a class="site ${s.source}" href="${esc(s.url)}" target="_blank" rel="noopener" title="Open on ${esc(JOB_SITES[s.source])}${s.via ? ' (via ' + esc(s.via) + ')' : ''}">${esc(JOB_SITES[s.source])}${s.via ? ' · ' + esc(s.via) : ''}</a>`).join('');
+  return `<article class="jrow">
+    <div class="jlogo">${j.logo ? `<img loading="lazy" referrerpolicy="no-referrer" src="${esc(j.logo)}" alt="" onerror="this.replaceWith('${initial}')">` : initial}</div>
+    <div style="min-width:0">
+      <a class="jtitle" href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>
+      <div class="jco">${esc(j.company || 'Company not listed')}${j.location ? ' · ' + esc(j.location) : ''}</div>
+      ${j.description ? `<div class="jdesc">${esc(j.description)}</div>` : ''}
+      <div class="jmeta">
+        ${j.salary ? `<span class="pill salary">${esc(j.salary)}</span>` : ''}
+        ${j.type ? `<span class="pill">${esc(j.type)}</span>` : ''}
+        ${sites}
+      </div>
+    </div>
+    <div class="jright">${j.postedAt ? ago(j.postedAt) : ''}${j.query ? `<div style="margin-top:4px">“${esc(j.query)}”</div>` : ''}</div>
+  </article>`;
+}
+
+function barList(entries, total) {
+  if (!entries.length) return '<div class="empty">No data yet.</div>';
+  const max = Math.max(...entries.map((e) => e[1]));
+  return entries.map(([name, n]) => `<div class="barrow"><span>${esc(name)}</span><span class="muted">${n}</span><div class="bar"><i style="width:${(n / max) * 100}%"></i></div></div>`).join('');
+}
+
+function countBy(list, fn) {
+  const m = new Map();
+  for (const j of list) for (const k of [].concat(fn(j))) if (k) m.set(k, (m.get(k) || 0) + 1);
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+function renderJobs() {
+  // Source + query filters
+  const seg = $('#jobSourceFilter');
+  seg.innerHTML = [['all', 'All sites'], ...Object.entries(JOB_SITES)].map(([k, v]) => `<button data-v="${k}" class="${ui.jobSource === k ? 'on' : ''}">${v}</button>`).join('');
+  $('#jobQueryFilter').innerHTML = ['all', ...(state.jobQueries || [])].map((q) => `<button class="chip ${ui.jobQuery === q ? 'on' : ''}" data-q="${esc(q)}">${q === 'all' ? 'All searches' : esc(q)}</button>`).join('');
+
+  const anyJobSource = Object.keys(JOB_SITES).some((k) => state.providers[`jobs_${k}`]?.connected);
+  const list = filteredJobs();
+  $('#jobCount').textContent = state.jobs.length ? `· ${list.length}${list.length !== state.jobs.length ? ' of ' + state.jobs.length : ''}` : '';
+  if (!anyJobSource) {
+    $('#jobs').innerHTML = jobSetupCard();
+  } else if (!list.length) {
+    const running = Object.keys(JOB_SITES).some((k) => state.sources[`jobs_${k}`]?.running);
+    const errs = Object.keys(JOB_SITES).map((k) => state.sources[`jobs_${k}`]?.error && `${JOB_SITES[k]}: ${state.sources[`jobs_${k}`].error}`).filter(Boolean);
+    $('#jobs').innerHTML = `<div class="empty">${running ? 'Fetching jobs…' : state.jobs.length ? 'No jobs match these filters.' : 'No jobs yet.'}${errs.length ? '<br>' + errs.map(esc).join('<br>') : ''}</div>`;
+  } else {
+    $('#jobs').innerHTML = list.slice(0, 300).map(jobRow).join('');
+  }
+
+  const all = state.jobs;
+  $('#jobBySite').innerHTML = barList(countBy(all, (j) => j.sites.map((s) => JOB_SITES[s.source])), all.length);
+  $('#jobCompanies').innerHTML = barList(countBy(all, (j) => j.company).slice(0, 10));
+  $('#jobLocations').innerHTML = barList(countBy(all, (j) => (j.location || '').split(',')[0].trim()).slice(0, 10));
+}
+
 function render() {
   if (!state) return;
+  renderJobs();
   renderStatus();
   renderVideos();
   renderSounds();
@@ -285,6 +373,24 @@ bindSeg('#langFilter', 'lang');
 $('#sortBy').value = ui.sort;
 $('#sortBy').addEventListener('change', (e) => { ui.sort = e.target.value; saveUi(); render(); });
 
+function showTab(tab) {
+  ui.tab = tab;
+  saveUi();
+  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
+  $('#view-social').hidden = tab !== 'social';
+  $('#view-jobs').hidden = tab !== 'jobs';
+  history.replaceState(null, '', `#tab=${tab}`);
+}
+$('#tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) showTab(b.dataset.tab); });
+const hashTab = location.hash.match(/tab=(\w+)/)?.[1];
+showTab((hashTab || ui.tab) === 'jobs' ? 'jobs' : 'social');
+$('#jobSourceFilter').addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) { ui.jobSource = b.dataset.v; saveUi(); renderJobs(); } });
+$('#jobQueryFilter').addEventListener('click', (e) => { const b = e.target.closest('[data-q]'); if (b) { ui.jobQuery = b.dataset.q; saveUi(); renderJobs(); } });
+$('#jobSort').value = ui.jobSort;
+$('#jobSort').addEventListener('change', (e) => { ui.jobSort = e.target.value; saveUi(); renderJobs(); });
+let searchTimer;
+$('#jobSearch').addEventListener('input', (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { jobSearch = e.target.value; state && renderJobs(); }, 150); });
+
 async function triggerRefresh(source) {
   const r = await fetch(`/api/refresh/${source}`, { method: 'POST' }).then((r) => r.json()).catch(() => null);
   if (!r) return toast('Could not reach server');
@@ -292,10 +398,12 @@ async function triggerRefresh(source) {
   else toast('Already up to date. Paid sources can be refreshed manually every 2 min.');
 }
 $('#refreshAll').addEventListener('click', () => triggerRefresh('all'));
-$('#status').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-refresh]');
-  if (b) triggerRefresh(b.dataset.refresh);
-});
+for (const el of [$('#status'), $('#jobStatus')]) {
+  el.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-refresh]');
+    if (b) triggerRefresh(b.dataset.refresh);
+  });
+}
 
 $('#themeToggle').addEventListener('click', () => {
   const root = document.documentElement;
