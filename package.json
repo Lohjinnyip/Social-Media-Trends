@@ -1,0 +1,16 @@
+{
+  "name": "malaysia-social-pulse",
+  "version": "1.0.0",
+  "description": "Live dashboard of trending TikTok, Instagram and Facebook videos in Malaysia, the music/sounds they use, and the latest Malaysian news.",
+  "type": "module",
+  "private": true,
+  "engines": { "node": ">=22.9" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "dev": "node --watch --env-file-if-exists=.env server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "fast-xml-parser": "^4.5.1"
+  }
+}
