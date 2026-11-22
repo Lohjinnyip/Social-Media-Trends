@@ -14,6 +14,7 @@ All data refreshes automatically on the server and is pushed to open browsers in
 ```bash
 npm install
 cp .env.example .env    # then add your APIFY_TOKEN
+npm run check           # verifies your keys (no paid scrapes)
 npm start               # http://localhost:3000
 ```
 

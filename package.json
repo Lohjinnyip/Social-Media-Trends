@@ -4,10 +4,13 @@
   "description": "Live dashboard of trending TikTok, Instagram and Facebook videos in Malaysia, the music/sounds they use, and the latest Malaysian news.",
   "type": "module",
   "private": true,
-  "engines": { "node": ">=22.9" },
+  "engines": {
+    "node": ">=22.9"
+  },
   "scripts": {
     "start": "node --env-file-if-exists=.env server/index.js",
-    "dev": "node --watch --env-file-if-exists=.env server/index.js"
+    "dev": "node --watch --env-file-if-exists=.env server/index.js",
+    "check": "node --env-file-if-exists=.env server/check.js"
   },
   "dependencies": {
     "express": "^4.21.2",
