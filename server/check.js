@@ -36,6 +36,13 @@ for (const [k, v] of Object.entries(est.perRun)) {
 console.log(`    → ${costSummary()}`);
 console.log('    (worst case: assumes every search returns its full result count)');
 
+console.log('\nYouTube (free)');
+if (!config.youtube.apiKey) skip('YOUTUBE_API_KEY not set');
+else {
+  const { res, body } = await json(`https://www.googleapis.com/youtube/v3/videos?part=id&chart=mostPopular&regionCode=MY&maxResults=1&key=${encodeURIComponent(config.youtube.apiKey)}`);
+  res.ok ? ok('API key valid, Malaysia trending chart reachable') : bad(`YouTube: ${body.error?.message || res.status}`);
+}
+
 console.log('\nMeta Graph API (optional)');
 for (const [label, token] of [['Instagram', config.instagram.graphToken], ['Facebook', config.facebook.graphToken]]) {
   if (!token) { skip(`${label} token not set`); continue; }
@@ -54,6 +61,10 @@ const feedResults = await Promise.all(
   }),
 );
 for (const [name, up] of feedResults) (up ? ok : bad)(`${name} RSS`);
+try {
+  const r = await fetch('https://trends.google.com/trending/rss?geo=MY', { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(15_000) });
+  (r.ok ? ok : bad)('Google Trends Malaysia RSS');
+} catch { bad('Google Trends Malaysia RSS'); }
 if (!config.newsApiKey) skip('NEWSAPI_KEY not set (optional)');
 else {
   const { body } = await json('https://newsapi.org/v2/top-headlines?country=my&pageSize=1', { headers: { 'X-Api-Key': config.newsApiKey } });

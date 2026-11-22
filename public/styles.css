@@ -12,6 +12,7 @@
   --tiktok: #25f4ee;
   --instagram: #e1306c;
   --facebook: #1877f2;
+  --youtube: #ff0033;
   --radius: 14px;
   --shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 8px 24px rgba(0, 0, 0, .25);
   color-scheme: dark;
@@ -116,6 +117,7 @@ select { background: var(--panel-2); border: 1px solid var(--line); border-radiu
 .pbadge.tiktok { background: #000; color: var(--tiktok); border: 1px solid #333; }
 .pbadge.instagram { background: linear-gradient(45deg, #f09433, #dc2743, #bc1888); }
 .pbadge.facebook { background: var(--facebook); }
+.pbadge.youtube { background: var(--youtube); }
 .overlay-stats { position: absolute; left: 10px; right: 10px; bottom: 8px; z-index: 1; color: #fff; display: flex; gap: 10px; font-size: 12px; font-weight: 600; flex-wrap: wrap; }
 .vbody { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
 .author { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -139,6 +141,7 @@ select { background: var(--panel-2); border: 1px solid var(--line); border-radiu
 .tag.hot { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
 .tag.orig { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
 .tag.tt { background: color-mix(in srgb, var(--tiktok) 18%, transparent); color: var(--tiktok); }
+.tag.yt { background: color-mix(in srgb, var(--youtube) 18%, transparent); color: var(--youtube); }
 .tag.ig { background: color-mix(in srgb, var(--instagram) 18%, transparent); color: var(--instagram); }
 .play { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); cursor: pointer; display: grid; place-items: center; font-size: 12px; }
 .play:hover { border-color: var(--accent); color: var(--accent); }
@@ -179,3 +182,14 @@ select { background: var(--panel-2); border: 1px solid var(--line); border-radiu
 
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translate(-50%, 30px); opacity: 0; transition: .25s; background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 13px; pointer-events: none; z-index: 20; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* Trending searches */
+.search-list { list-style: none; margin: 0; padding: 0; counter-reset: s; max-height: 360px; overflow: auto; scrollbar-width: thin; }
+.search-list li { counter-increment: s; display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: baseline; padding: 7px 2px; border-top: 1px solid var(--line); }
+.search-list li:first-child { border-top: 0; }
+.search-list li::before { content: counter(s); color: var(--muted); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.search-list .q { font-weight: 600; font-size: 13.5px; }
+.search-list .q:hover { color: var(--accent); }
+.search-list .ctx { display: block; color: var(--muted); font-size: 11.5px; font-weight: 400; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-list .traffic { color: var(--accent); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.cc-links { display: flex; flex-wrap: wrap; gap: 6px; }

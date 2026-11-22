@@ -15,6 +15,8 @@ export const config = {
     newsMs: num(env.NEWS_REFRESH_MINUTES, 3) * 60_000,
     socialMs: num(env.SOCIAL_REFRESH_MINUTES, 720) * 60_000,
     trendsMs: num(env.TRENDS_REFRESH_MINUTES, 1440) * 60_000,
+    youtubeMs: num(env.YOUTUBE_REFRESH_MINUTES, 30) * 60_000,
+    searchTrendsMs: num(env.SEARCH_TRENDS_REFRESH_MINUTES, 10) * 60_000,
     // Manual "refresh now" for paid sources is throttled to this.
     manualSocialMinMs: 2 * 60_000,
   },
@@ -43,6 +45,10 @@ export const config = {
     resultsPerPage: num(env.FB_RESULTS_PER_PAGE, 5),
     graphToken: env.FB_GRAPH_TOKEN?.trim() || '',
     graphPages: list(env.FB_GRAPH_PAGES, ''),
+  },
+
+  youtube: {
+    apiKey: env.YOUTUBE_API_KEY?.trim() || '',
   },
 
   newsApiKey: env.NEWSAPI_KEY?.trim() || '',

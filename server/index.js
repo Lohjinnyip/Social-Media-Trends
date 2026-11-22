@@ -9,6 +9,8 @@ import { fetchNews } from './providers/news.js';
 import { fetchTikTokVideos, fetchTikTokTrends, tiktokStatus } from './providers/tiktok.js';
 import { fetchInstagramVideos, instagramStatus } from './providers/instagram.js';
 import { fetchFacebookVideos, facebookStatus } from './providers/facebook.js';
+import { fetchYouTube, youtubeStatus } from './providers/youtube.js';
+import { fetchSearchTrends } from './providers/searchTrends.js';
 import { costSummary } from './cost.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -17,6 +19,8 @@ const CACHE_FILE = path.join(ROOT, 'data', 'cache.json');
 // ── Sources ──────────────────────────────────────────────────────────
 const SOURCES = {
   news: { run: fetchNews, intervalMs: config.refresh.newsMs, paid: false, enabled: () => true },
+  searchTrends: { run: fetchSearchTrends, intervalMs: config.refresh.searchTrendsMs, paid: false, enabled: () => true },
+  youtube: { run: fetchYouTube, intervalMs: config.refresh.youtubeMs, paid: false, enabled: () => youtubeStatus().connected },
   tiktok: { run: fetchTikTokVideos, intervalMs: config.refresh.socialMs, paid: true, enabled: () => tiktokStatus().connected },
   instagram: { run: fetchInstagramVideos, intervalMs: config.refresh.socialMs, paid: true, enabled: () => instagramStatus().connected },
   facebook: { run: fetchFacebookVideos, intervalMs: config.refresh.socialMs, paid: true, enabled: () => facebookStatus().connected },
@@ -88,7 +92,10 @@ function schedule() {
 }
 
 // ── Aggregation ──────────────────────────────────────────────────────
-const videosOf = (name) => (Array.isArray(data[name].payload) ? data[name].payload : []);
+const videosOf = (name) => {
+  const p = data[name].payload;
+  return Array.isArray(p) ? p : Array.isArray(p?.videos) ? p.videos : [];
+};
 
 function aggregateSounds() {
   // Licensed music is merged across platforms by title + artist; "original sounds"
@@ -121,16 +128,19 @@ function aggregateSounds() {
     e.url ||= t.url;
     map.set(key, e);
   }
+  for (const m of data.youtube.payload?.music || []) {
+    map.set(`youtube:${m.id}`, { ...m, key: `youtube:${m.id}`, platforms: ['youtube'], videos: 0, totalViews: m.views, examples: [], ytRank: m.rank });
+  }
   return [...map.values()]
     .map((s) => ({ ...s, kind: s.original ? 'original' : 'music' }))
-    .sort((a, b) => b.videos - a.videos || (a.trendRank ?? 999) - (b.trendRank ?? 999) || b.totalViews - a.totalViews)
-    .slice(0, 60);
+    .sort((a, b) => b.videos - a.videos || (a.trendRank ?? 999) - (b.trendRank ?? 999) || (a.ytRank ?? 999) - (b.ytRank ?? 999))
+    .slice(0, 80);
 }
 
 function aggregateHashtags() {
   const skip = new Set(['fyp', 'foryou', 'foryoupage', 'fypシ', 'viral', 'fy', 'xyzbca', 'trending', 'reels', 'tiktok']);
   const map = new Map();
-  for (const v of ['tiktok', 'instagram', 'facebook'].flatMap(videosOf)) {
+  for (const v of ['tiktok', 'instagram', 'facebook', 'youtube'].flatMap(videosOf)) {
     for (const h of new Set(v.hashtags)) {
       if (skip.has(h)) continue;
       const e = map.get(h) || { name: h, videos: 0, views: 0 };
@@ -149,6 +159,8 @@ function snapshot() {
       tiktok: tiktokStatus(),
       instagram: instagramStatus(),
       facebook: facebookStatus(),
+      youtube: youtubeStatus(),
+      searchTrends: { connected: true, via: 'Google Trends RSS · Malaysia (free)' },
       news: { connected: true, via: `RSS feeds${config.newsApiKey ? ' + NewsAPI' : ''}` },
     },
     sources: Object.fromEntries(
@@ -158,7 +170,8 @@ function snapshot() {
       ]),
     ),
     news: data.news.payload?.items || [],
-    videos: { tiktok: videosOf('tiktok'), instagram: videosOf('instagram'), facebook: videosOf('facebook') },
+    videos: { tiktok: videosOf('tiktok'), instagram: videosOf('instagram'), facebook: videosOf('facebook'), youtube: videosOf('youtube') },
+    searchTrends: data.searchTrends.payload || [],
     trends: { hashtags: data.tiktokTrends.payload?.hashtags || [] },
     sounds: aggregateSounds(),
     hashtags: aggregateHashtags(),

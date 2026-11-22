@@ -45,10 +45,11 @@ try {
 const saveUi = () => { try { localStorage.setItem('pulse-ui', JSON.stringify(ui)); } catch {} };
 
 // ── Rendering ────────────────────────────────────────────────────────
-const LABEL = { news: 'News', tiktok: 'TikTok', instagram: 'Instagram', facebook: 'Facebook', tiktokTrends: 'TikTok trends' };
+const LABEL = { news: 'News', tiktok: 'TikTok', instagram: 'Instagram', facebook: 'Facebook', youtube: 'YouTube', tiktokTrends: 'TikTok trends', searchTrends: 'Google Trends' };
+const PLATFORMS = ['tiktok', 'instagram', 'facebook', 'youtube'];
 
 function renderStatus() {
-  const order = ['tiktok', 'instagram', 'facebook', 'tiktokTrends', 'news'];
+  const order = ['tiktok', 'instagram', 'facebook', 'youtube', 'tiktokTrends', 'searchTrends', 'news'];
   $('#status').innerHTML = order.map((k) => {
     const s = state.sources[k];
     const prov = state.providers[k === 'tiktokTrends' ? 'tiktok' : k];
@@ -66,7 +67,7 @@ function renderStatus() {
 
 function allVideos() {
   const v = state.videos;
-  let list = ui.platform === 'all' ? [...v.tiktok, ...v.instagram, ...v.facebook] : [...v[ui.platform]];
+  let list = ui.platform === 'all' ? PLATFORMS.flatMap((p) => v[p] || []) : [...(v[ui.platform] || [])];
   const sorters = {
     score: (a, b) => b.score - a.score,
     views: (a, b) => b.stats.views - a.stats.views,
@@ -78,8 +79,9 @@ function allVideos() {
 
 function setupCard() {
   return `<div class="setup">
-    <h3>Connect your social sources</h3>
-    <p>No official API lists “trending in Malaysia” for TikTok, Instagram or Facebook, so this dashboard uses <b>Apify</b> scrapers. One token covers all three platforms.</p>
+    <h3>Connect your video sources</h3>
+    <p><b>YouTube (free):</b> create a free key in Google Cloud and set <code>YOUTUBE_API_KEY</code> in <code>.env</code> for YouTube's official Malaysia trending chart. Steps are in <code>README.md</code>.</p>
+    <p><b>TikTok, Instagram, Facebook:</b> no official API lists “trending in Malaysia”, so these use <b>Apify</b> scrapers. One token covers all three, and the free plan includes $5/month.</p>
     <ol>
       <li>Create a free account at <a href="https://console.apify.com" target="_blank" rel="noopener"><u>console.apify.com</u></a> and copy your API token from <i>Settings → API &amp; Integrations</i>.</li>
       <li>Copy <code>.env.example</code> to <code>.env</code> and set <code>APIFY_TOKEN=…</code></li>
@@ -97,10 +99,10 @@ function videoCard(v, i) {
   const thumb = media(v.thumbnail);
   return `<article class="vcard">
     <a class="thumb" href="${esc(v.url)}" target="_blank" rel="noopener">
-      ${thumb ? `<img loading="lazy" referrerpolicy="no-referrer" src="${esc(thumb)}" alt="" onerror="this.remove()">` : ''}
+      ${thumb ? `<img loading="lazy" referrerpolicy="no-referrer" src="${esc(thumb)}" data-fb="${esc(media(v.thumbnailFallback))}" alt="" onerror="if (this.dataset.fb) { this.src = this.dataset.fb; this.dataset.fb = ''; } else this.remove()">` : ''}
       <span class="noimg">▶</span>
       <span class="rank">#${i + 1}</span>
-      <span class="pbadge ${v.platform}">${v.platform === 'instagram' ? 'IG' : v.platform === 'facebook' ? 'FB' : 'TikTok'}</span>
+      <span class="pbadge ${v.platform}">${{ instagram: 'IG', facebook: 'FB', youtube: v.isShort ? 'YT Shorts' : 'YouTube', tiktok: 'TikTok' }[v.platform]}</span>
       <div class="overlay-stats">
         ${v.stats.views ? `<span>▶ ${fmt(v.stats.views)}</span>` : ''}
         <span>♥ ${fmt(v.stats.likes)}</span>
@@ -118,12 +120,12 @@ function videoCard(v, i) {
 }
 
 function renderVideos() {
-  const anyConnected = ['tiktok', 'instagram', 'facebook'].some((k) => state.providers[k].connected);
+  const anyConnected = PLATFORMS.some((k) => state.providers[k]?.connected);
   const list = allVideos();
   $('#videoCount').textContent = list.length ? `· ${list.length}` : '';
   if (!anyConnected) return ($('#videos').innerHTML = setupCard());
   if (!list.length) {
-    const platforms = ui.platform === 'all' ? ['tiktok', 'instagram', 'facebook'] : [ui.platform];
+    const platforms = ui.platform === 'all' ? PLATFORMS : [ui.platform];
     const running = platforms.some((k) => state.sources[k].running);
     const errors = platforms.map((k) => state.sources[k].error && `${LABEL[k]}: ${state.sources[k].error}`).filter(Boolean);
     const notConn = platforms.filter((k) => !state.providers[k].connected).map((k) => `${LABEL[k]}: ${state.providers[k].hint}`);
@@ -136,7 +138,7 @@ function renderVideos() {
 function renderSounds() {
   const list = state.sounds.filter((s) => ui.soundKind === 'all' || s.kind === ui.soundKind);
   if (!list.length) {
-    $('#sounds').innerHTML = `<div class="empty">${state.providers.tiktok.connected || state.providers.instagram.connected ? 'Sounds appear after the first TikTok/Instagram scrape.' : 'Connect TikTok or Instagram to see the music and sounds used in trending videos.'}</div>`;
+    $('#sounds').innerHTML = `<div class="empty">${['tiktok', 'instagram', 'youtube'].some((k) => state.providers[k].connected) ? 'Sounds appear after the first refresh.' : 'Connect YouTube (free) for Malaysia\'s trending music, or TikTok/Instagram for the sounds used in trending videos.'}</div>`;
     return;
   }
   const playing = $('#player').dataset.src;
@@ -150,11 +152,12 @@ function renderSounds() {
         <a class="stitle" href="${esc(link)}" target="_blank" rel="noopener" title="${esc(s.title)}">${esc(s.title)}</a>
         <div class="smeta">
           ${s.trendRank ? `<span class="tag hot">MY #${s.trendRank}</span>` : ''}
+          ${s.ytRank ? `<span class="tag hot">YT MY #${s.ytRank}</span>` : ''}
           ${s.original ? '<span class="tag orig">Original / SFX</span>' : ''}
-          ${(s.platforms || []).map((p) => `<span class="tag ${p === 'instagram' ? 'ig' : 'tt'}">${p === 'instagram' ? 'IG' : 'TT'}</span>`).join('')}
+          ${(s.platforms || []).map((p) => `<span class="tag ${{ instagram: 'ig', youtube: 'yt', tiktok: 'tt' }[p]}">${{ instagram: 'IG', youtube: 'YT', tiktok: 'TT' }[p]}</span>`).join('')}
           ${esc(s.author || '')}
         </div>
-        <div class="smeta">${s.videos ? `${s.videos} trending video${s.videos > 1 ? 's' : ''}${s.totalViews ? ' · ' + fmt(s.totalViews) + ' views' : ''}` : 'Trending on TikTok Explore'}</div>
+        <div class="smeta">${s.videos ? `${s.videos} trending video${s.videos > 1 ? 's' : ''}${s.totalViews ? ' · ' + fmt(s.totalViews) + ' views' : ''}` : s.ytRank ? `Trending music video · ${fmt(s.totalViews)} views` : 'Trending on TikTok Explore'}</div>
       </div>
       ${audio ? `<button class="play ${playing === audio ? 'on' : ''}" data-audio="${esc(audio)}" aria-label="Preview">${playing === audio ? '❚❚' : '▶'}</button>` : '<span></span>'}
     </div>`;
@@ -173,7 +176,24 @@ function renderHashtags() {
     html += `<div class="subhead">In current trending videos</div><div class="tags">${derived.slice(0, 30).map((h) =>
       `<span class="htag">#${esc(h.name)}<small>${h.videos}</small></span>`).join('')}</div>`;
   }
+  if (!state.providers.tiktok.connected) {
+    html += `<div class="subhead">TikTok · free, opens in your browser</div><div class="cc-links">
+      <a class="htag official" target="_blank" rel="noopener" href="https://ads.tiktok.com/creative/creativeCenter/trends">TikTok Creative Center trends (choose Malaysia) ↗</a></div>`;
+  }
   $('#hashtags').innerHTML = html || '<div class="empty">Hashtags appear once social sources are connected.</div>';
+}
+
+function renderSearchTrends() {
+  const items = state.searchTrends || [];
+  if (!items.length) {
+    $('#searchTrends').innerHTML = `<li class="empty" style="display:block">${esc(state.sources.searchTrends?.error || 'Loading…')}</li>`;
+    return;
+  }
+  $('#searchTrends').innerHTML = items.slice(0, 20).map((t) => `<li>
+    <div style="min-width:0"><a class="q" href="${esc(t.searchUrl)}" target="_blank" rel="noopener">${esc(t.query)}</a>
+      ${t.news[0] ? `<a class="ctx" href="${esc(t.news[0].url)}" target="_blank" rel="noopener" title="${esc(t.news[0].title)}">${esc(t.news[0].source || '')}: ${esc(t.news[0].title)}</a>` : ''}</div>
+    <span class="traffic">${esc(t.traffic)}</span>
+  </li>`).join('');
 }
 
 function renderNews() {
@@ -217,6 +237,7 @@ function render() {
   renderVideos();
   renderSounds();
   renderHashtags();
+  renderSearchTrends();
   renderNews();
 }
 
