@@ -33,14 +33,33 @@ TikTok, Instagram and Facebook have **no official API that returns "trending vid
 
 One Apify token covers all three platforms: sign up at [console.apify.com](https://console.apify.com) and copy it from *Settings → API & Integrations*.
 
-### Cost control
+### Cost
 
-Apify charges per run/result. The defaults keep usage modest:
+Apify charges **per result** (prices read 2026-11-22). Rates on the Free plan / Starter plan:
 
-- Social sources refresh every **30 min** (`SOCIAL_REFRESH_MINUTES`) and TikTok trend lists every **60 min** (`TRENDS_REFRESH_MINUTES`).
-- Results are cached in `data/cache.json`. Restarting the server does **not** re-scrape if the cache is still fresh.
-- A manual "↻ refresh" on a paid source is throttled to once every 2 min.
-- Tune volume with `TIKTOK_RESULTS_PER_QUERY`, `IG_RESULTS_LIMIT` and `FB_RESULTS_PER_PAGE`.
+| Actor | Price per result |
+|---|---|
+| TikTok videos (`clockworks/tiktok-scraper`) | $0.0037 / $0.003, plus $0.0013 / $0.001 for each add-on. This app uses two: the Malaysia location and the 24h date filter. |
+| TikTok trends (`automation-lab/tiktok-trends-scraper`) | $0.05 per sound run + $0.0062 per sound, $0.002 per Creative Center hashtag |
+| Instagram Reels (`apify/instagram-hashtag-scraper`) | $0.0026 / $0.0023 |
+| Facebook posts (`apify/facebook-posts-scraper`) | $0.005 / $0.004 |
+
+Estimated monthly cost with the default result counts, worst case:
+
+| Social refresh every | Free-plan prices | Starter prices |
+|---|---|---|
+| 30 min | ~$650 | ~$525 |
+| 3 h | ~$113 | ~$93 |
+| 6 h | ~$59 | ~$49 |
+| **12 h (default)** | **~$33** | **~$28** |
+| 24 h | ~$19 | ~$17 |
+
+`npm run check` prints the estimate for your exact `.env`, and the server logs it on startup. Other ways to keep cost down:
+
+- Results are cached in `data/cache.json`, so restarting the server does **not** re-scrape while the cache is fresh.
+- A manual "↻ refresh" on a paid source is throttled to once every 2 min. Each click costs one refresh.
+- Lower `TIKTOK_RESULTS_PER_QUERY`, `IG_RESULTS_LIMIT`, `FB_RESULTS_PER_PAGE`, or the number of queries, hashtags and pages.
+- Set a monthly usage limit in Apify (*Settings → Usage & Billing*) as a hard cap.
 
 News is free and refreshes every **3 min** (`NEWS_REFRESH_MINUTES`).
 

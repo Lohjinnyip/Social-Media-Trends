@@ -9,6 +9,7 @@ import { fetchNews } from './providers/news.js';
 import { fetchTikTokVideos, fetchTikTokTrends, tiktokStatus } from './providers/tiktok.js';
 import { fetchInstagramVideos, instagramStatus } from './providers/instagram.js';
 import { fetchFacebookVideos, facebookStatus } from './providers/facebook.js';
+import { costSummary } from './cost.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const CACHE_FILE = path.join(ROOT, 'data', 'cache.json');
@@ -252,5 +253,6 @@ schedule();
 app.listen(config.port, () => {
   console.log(`\nMalaysia Social Pulse → http://localhost:${config.port}`);
   for (const [k, s] of Object.entries(snapshot().providers)) console.log(`  ${k.padEnd(10)} ${s.connected ? '✓ ' + s.via : '✗ ' + s.hint}`);
+  if (config.apifyToken) console.log(`\n  Apify cost estimate: ${costSummary()}`);
   console.log();
 });

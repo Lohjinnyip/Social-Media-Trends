@@ -1,6 +1,7 @@
 // `npm run check` — verifies every key in .env without running any paid scrape.
 import { config } from './config.js';
 import { FEEDS } from './providers/news.js';
+import { estimateCost, costSummary } from './cost.js';
 
 const ok = (m) => console.log(`  ✓ ${m}`);
 const bad = (m) => console.log(`  ✗ ${m}`);
@@ -26,6 +27,14 @@ if (!config.apifyToken) {
     if (used != null && max != null) ok(`usage this month: $${used.toFixed(2)} of $${max.toFixed(2)}`);
   }
 }
+
+console.log('\nEstimated Apify cost with your current .env');
+const est = estimateCost('free');
+for (const [k, v] of Object.entries(est.perRun)) {
+  if (v) console.log(`    ${k.padEnd(13)} $${v.toFixed(3)} per refresh × ${est.runsPerDay[k].toFixed(1)}/day`);
+}
+console.log(`    → ${costSummary()}`);
+console.log('    (worst case: assumes every search returns its full result count)');
 
 console.log('\nMeta Graph API (optional)');
 for (const [label, token] of [['Instagram', config.instagram.graphToken], ['Facebook', config.facebook.graphToken]]) {

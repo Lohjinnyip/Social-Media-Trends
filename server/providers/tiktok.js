@@ -56,7 +56,7 @@ export async function fetchTikTokVideos() {
     hashtags,
     resultsPerPage: resultsPerQuery,
     searchSection: '/video',
-    videoSearchSorting: 'MOST_LIKED',
+    videoSearchSorting: config.tiktok.sort,
     videoSearchDateFilter: dateFilter,
     proxyCountryCode: 'MY',
     shouldDownloadVideos: false,
@@ -73,7 +73,7 @@ export async function fetchTikTokTrends() {
   if (!config.tiktok.trendsEnabled) return { hashtags: [], sounds: [] };
   const [tags, sounds] = await Promise.allSettled([
     runActor(TRENDS_ACTOR, { trendType: 'hashtag', countryCode: 'MY', period: 7, maxResults: 30 }),
-    runActor(TRENDS_ACTOR, { trendType: 'sound', countryCode: 'MY', period: 7, maxResults: 30 }),
+    runActor(TRENDS_ACTOR, { trendType: 'sound', countryCode: 'MY', period: 7, maxResults: 15 }),
   ]);
   const errors = [tags, sounds].filter((r) => r.status === 'rejected').map((r) => r.reason.message);
   if (errors.length === 2) throw new Error(errors.join(' | '));
